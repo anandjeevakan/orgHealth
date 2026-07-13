@@ -1,0 +1,151 @@
+.page {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 32px 20px 64px;
+  text-align: left;
+}
+
+.page-header {
+  margin-bottom: 24px;
+}
+
+.page-header h1 {
+  margin: 0 0 4px;
+  font-size: 28px;
+}
+
+.subtitle {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.error {
+  color: var(--danger);
+}
+
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 40px;
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  background: var(--bg-alt);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.card-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-h);
+}
+
+.card-label {
+  font-size: 13px;
+  color: var(--text);
+}
+
+section + section {
+  margin-top: 40px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+th {
+  color: var(--text);
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+td.num {
+  font-variant-numeric: tabular-nums;
+}
+
+td.muted,
+.muted {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge-danger {
+  color: var(--danger);
+  background: var(--danger-bg);
+}
+
+.badge-warn {
+  color: var(--warn);
+  background: var(--warn-bg);
+}
+
+.badge-action {
+  color: var(--action);
+  background: var(--action-bg);
+}
+
+.badge-ok {
+  color: var(--ok);
+  background: var(--ok-bg);
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: var(--text-h);
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0;
+}
+
+.refs-row td {
+  background: var(--bg-alt);
+}
+
+.refs-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.refs-list pre {
+  margin: 4px 0 0;
+  padding: 8px 10px;
+  background: var(--code-bg);
+  border-radius: 6px;
+  font-size: 12px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
