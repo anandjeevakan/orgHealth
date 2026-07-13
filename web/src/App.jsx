@@ -91,10 +91,40 @@ function EntityTable({ title, entities, filtered }) {
   );
 }
 
+function toCsvCell(value) {
+  const str = String(value ?? '');
+  return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+}
+
+// Exports whatever is currently visible (i.e. respects active filters) as a
+// single CSV -- opens natively in Excel. Avoids the `xlsx` npm package,
+// which only has unpatched high-severity CVEs published to the npm registry
+// (SheetJS moved patched builds to their own CDN after a licensing dispute).
+function exportToCsv(categories) {
+  const rows = [['Category', 'Name', 'Active Users', 'Recommendation', 'References']];
+  for (const c of categories) {
+    for (const e of c.entities) {
+      const refs = (e.references || []).map((r) => `${r.file}:${r.line}`).join(' | ');
+      rows.push([c.title, e.name, e.activeUserCount, RECOMMENDATION_LABEL[e.recommendation] || e.recommendation, refs]);
+    }
+  }
+  const csv = rows.map((row) => row.map(toCsvCell).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'org-health-findings.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 function App() {
   const [findings, setFindings] = useState(null);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
+  const [selectedProfiles, setSelectedProfiles] = useState([]);
 
   useEffect(() => {
     fetch('/data/findings.json')
@@ -137,19 +167,29 @@ function App() {
   const doNotDelete = allEntities.filter((e) => e.recommendation === 'DO_NOT_DELETE');
 
   const needle = search.trim().toLowerCase();
-  const isFiltering = needle.length > 0;
-  const visibleCategories = categories.map((c) => ({
-    ...c,
-    entities: isFiltering ? c.entities.filter((e) => e.name.toLowerCase().includes(needle)) : c.entities,
-  }));
+  const isFiltering = needle.length > 0 || selectedProfiles.length > 0;
+  const visibleCategories = categories.map((c) => {
+    let entities = needle ? c.entities.filter((e) => e.name.toLowerCase().includes(needle)) : c.entities;
+    if (c.key === 'profiles' && selectedProfiles.length > 0) {
+      entities = entities.filter((e) => selectedProfiles.includes(e.name));
+    }
+    return { ...c, entities };
+  });
 
   return (
     <main className="page">
       <header className="page-header">
-        <h1>Org Health Findings</h1>
-        <p className="subtitle">
-          {findings.targetOrg} · generated {new Date(findings.generatedAt).toLocaleString()}
-        </p>
+        <div className="page-header-row">
+          <div>
+            <h1>Org Health Findings</h1>
+            <p className="subtitle">
+              {findings.targetOrg} · generated {new Date(findings.generatedAt).toLocaleString()}
+            </p>
+          </div>
+          <button className="export-button" onClick={() => exportToCsv(visibleCategories)}>
+            Export to Excel (CSV)
+          </button>
+        </div>
       </header>
 
       <section className="summary-cards">
@@ -186,10 +226,34 @@ function App() {
           ))}
         </datalist>
         {isFiltering && (
-          <button className="link-button" onClick={() => setSearch('')}>
+          <button
+            className="link-button"
+            onClick={() => {
+              setSearch('');
+              setSelectedProfiles([]);
+            }}
+          >
             Clear
           </button>
         )}
+      </div>
+
+      <div className="multiselect-bar">
+        <label htmlFor="profile-multiselect">Filter Profiles (multi-select)</label>
+        <select
+          id="profile-multiselect"
+          multiple
+          size={Math.min(Math.max(findings.profiles.length, 3), 6)}
+          value={selectedProfiles}
+          onChange={(e) => setSelectedProfiles(Array.from(e.target.selectedOptions, (o) => o.value))}
+        >
+          {findings.profiles.map((p) => (
+            <option key={p.name} value={p.name}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+        <p className="hint">Ctrl/Cmd-click (or Shift-click for a range) to select multiple.</p>
       </div>
 
       {visibleCategories.map((c) => (
