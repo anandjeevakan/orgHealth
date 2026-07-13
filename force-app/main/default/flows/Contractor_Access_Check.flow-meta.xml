@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>60.0</apiVersion>
+    <decisions>
+        <name>Check_Contractor_Profile</name>
+        <label>Check Contractor Profile</label>
+        <locationX>176</locationX>
+        <locationY>134</locationY>
+        <defaultConnectorLabel>Not a Contractor</defaultConnectorLabel>
+        <rules>
+            <name>Is_Contractor_Temp_Q3</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>$Profile.Name</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <stringValue>Contractor_Temp_Q3</stringValue>
+                </rightValue>
+            </conditions>
+            <label>Is Contractor Temp Q3</label>
+        </rules>
+    </decisions>
+    <interviewLabel>Contractor Access Check {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>Contractor Access Check</label>
+    <processType>AutoLaunchedFlow</processType>
+    <start>
+        <locationX>50</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>Check_Contractor_Profile</targetReference>
+        </connector>
+    </start>
+    <status>Active</status>
+</Flow>

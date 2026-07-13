@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>VR_Discount_Block</fullName>
+    <active>true</active>
+    <description>Blocks the Legacy Support Rep profile from applying a discount on Opportunities. Landmine case for org-health analysis: Legacy_Support_Rep has 0 active users but is still referenced here.</description>
+    <errorConditionFormula>AND(
+    $Profile.Name = &quot;Legacy_Support_Rep&quot;,
+    Discount_Percent__c &gt; 0
+)</errorConditionFormula>
+    <errorMessage>The Legacy Support Rep profile is not permitted to apply Opportunity discounts. Contact your Sales Manager for discount approval.</errorMessage>
+</ValidationRule>
