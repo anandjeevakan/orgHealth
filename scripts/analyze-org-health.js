@@ -4,18 +4,18 @@
 // Usage:
 //   node scripts/analyze-org-health.js --target-org <alias-or-username>
 //
-// 1. Queries active user assignment counts per Profile and PermissionSet.
+// 1. Queries active user assignment counts per Profile, PermissionSet, and Role.
 // 2. Flags any with 0 active users.
-// 3. For each flagged Profile, scans local ValidationRule/Flow/ApexClass source
-//    under force-app for the profile's exact name as a string literal
+// 3. For each flagged item, scans local ValidationRule/Flow/ApexClass source
+//    under force-app for the item's exact name as a string literal
 //    ($Profile.Name comparisons, {!$Profile.Name} flow conditions,
-//    Profile.Name = '...' SOQL, or any hardcoded literal) -- NOT
-//    UserInfo.getProfileId()/User.ProfileId, which are ID-based and out of
-//    scope. Case-sensitive exact match only. Excludes the profile's own
-//    metadata file.
+//    Profile.Name/UserRole.Name = '...' SOQL, or any hardcoded literal) --
+//    NOT UserInfo.getProfileId()/User.ProfileId/UserInfo.getUserRoleId(),
+//    which are ID-based and out of scope. Case-sensitive exact match only.
+//    Excludes the item's own metadata file.
 // 4. Writes analysis/findings.json with per-item user counts, references, and
 //    a recommendation.
-// 5. For flagged Profiles with zero references, writes
+// 5. For flagged items with zero references, writes
 //    analysis/destructiveChanges.xml + analysis/package.xml (a deletion
 //    package) for manual review -- this script never deploys it.
 
@@ -86,12 +86,12 @@ function collectScanFiles() {
   return files;
 }
 
-function findReferences(profileName, ownProfileFile) {
+function findReferences(name, ownFile) {
   const refs = [];
-  const escaped = profileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const pattern = new RegExp(`\\b${escaped}\\b`);
   for (const file of collectScanFiles()) {
-    if (path.resolve(file) === path.resolve(ownProfileFile)) continue;
+    if (ownFile && path.resolve(file) === path.resolve(ownFile)) continue;
     const content = fs.readFileSync(file, 'utf8');
     content.split('\n').forEach((line, i) => {
       if (pattern.test(line)) {
@@ -102,77 +102,86 @@ function findReferences(profileName, ownProfileFile) {
   return refs;
 }
 
-// --- 1. Active user counts per Profile ---
-const userRecords = sfQuery('SELECT Id, Profile.Name FROM User WHERE IsActive = true');
-const profileUserCounts = {};
-for (const u of userRecords) {
-  const name = u.Profile && u.Profile.Name;
-  if (!name) continue;
-  profileUserCounts[name] = (profileUserCounts[name] || 0) + 1;
+// Builds findings entries for one entity type: for each locally-known name,
+// looks up its active user count, and (if 0) scans for code references.
+function buildEntries(names, userCounts, metadataDir, metadataSuffix) {
+  return names.map((name) => {
+    const userCount = userCounts[name] || 0;
+    const ownFile = path.join(METADATA_ROOT, metadataDir, `${name}${metadataSuffix}`);
+    const entry = { name, activeUserCount: userCount, references: [] };
+    if (userCount === 0) {
+      entry.references = findReferences(name, ownFile);
+      entry.recommendation = entry.references.length === 0 ? 'SAFE_TO_DELETE' : 'DO_NOT_DELETE';
+      entry.confidence = entry.references.length === 0 ? 'high' : 'blocked-by-reference';
+    } else {
+      entry.recommendation = 'IN_USE';
+      entry.confidence = 'high';
+    }
+    return entry;
+  });
 }
 
-// --- 1b. Active user counts per PermissionSet (via assignments) ---
-const psaRecords = sfQuery(
-  'SELECT Id, PermissionSet.Name FROM PermissionSetAssignment WHERE Assignee.IsActive = true'
-);
-const permSetUserCounts = {};
-for (const p of psaRecords) {
-  const name = p.PermissionSet && p.PermissionSet.Name;
-  if (!name) continue;
-  permSetUserCounts[name] = (permSetUserCounts[name] || 0) + 1;
+function countBy(records, path_) {
+  const counts = {};
+  for (const r of records) {
+    const name = path_(r);
+    if (!name) continue;
+    counts[name] = (counts[name] || 0) + 1;
+  }
+  return counts;
 }
+
+// --- 1. Active user counts per Profile, PermissionSet (via assignment), and Role ---
+const profileUserCounts = countBy(
+  sfQuery('SELECT Id, Profile.Name FROM User WHERE IsActive = true'),
+  (u) => u.Profile && u.Profile.Name
+);
+const permSetUserCounts = countBy(
+  sfQuery('SELECT Id, PermissionSet.Name FROM PermissionSetAssignment WHERE Assignee.IsActive = true'),
+  (p) => p.PermissionSet && p.PermissionSet.Name
+);
+const roleUserCounts = countBy(
+  sfQuery('SELECT Id, UserRole.Name FROM User WHERE IsActive = true AND UserRoleId != null'),
+  (u) => u.UserRole && u.UserRole.Name
+);
 
 // --- Local metadata inventory (what we can actually reason about via source scan) ---
 const localProfiles = listMetadataNames('profiles', '.profile-meta.xml');
 const localPermSets = listMetadataNames('permissionsets', '.permissionset-meta.xml');
+const localRoles = listMetadataNames('roles', '.role-meta.xml');
 
 const findings = {
   generatedAt: new Date().toISOString(),
   targetOrg,
-  profiles: [],
-  permissionSets: [],
+  profiles: buildEntries(localProfiles, profileUserCounts, 'profiles', '.profile-meta.xml'),
+  permissionSets: buildEntries(localPermSets, permSetUserCounts, 'permissionsets', '.permissionset-meta.xml'),
+  roles: buildEntries(localRoles, roleUserCounts, 'roles', '.role-meta.xml'),
 };
-
-for (const profileName of localProfiles) {
-  const userCount = profileUserCounts[profileName] || 0;
-  const ownFile = path.join(METADATA_ROOT, 'profiles', `${profileName}.profile-meta.xml`);
-  const entry = { name: profileName, activeUserCount: userCount, references: [] };
-  if (userCount === 0) {
-    entry.references = findReferences(profileName, ownFile);
-    entry.recommendation = entry.references.length === 0 ? 'SAFE_TO_DELETE' : 'DO_NOT_DELETE';
-    entry.confidence = entry.references.length === 0 ? 'high' : 'blocked-by-reference';
-  } else {
-    entry.recommendation = 'IN_USE';
-    entry.confidence = 'high';
-  }
-  findings.profiles.push(entry);
-}
-
-for (const psName of localPermSets) {
-  const userCount = permSetUserCounts[psName] || 0;
-  findings.permissionSets.push({
-    name: psName,
-    activeUserCount: userCount,
-    recommendation: userCount === 0 ? 'FLAGGED_UNUSED' : 'IN_USE',
-    note:
-      userCount === 0
-        ? 'Name-match code scanning is only specified for Profiles per the spec -- review manually before deleting.'
-        : undefined,
-  });
-}
 
 // --- Write findings.json ---
 fs.mkdirSync(OUT_DIR, { recursive: true });
 fs.writeFileSync(path.join(OUT_DIR, 'findings.json'), JSON.stringify(findings, null, 2));
 
-// --- Deletion package for profiles that are safe to delete (manual review required) ---
-const safeToDelete = findings.profiles.filter((p) => p.recommendation === 'SAFE_TO_DELETE');
+// --- Deletion package for entities that are safe to delete (manual review required) ---
+const DELETABLE_TYPES = [
+  { key: 'profiles', metadataTypeName: 'Profile' },
+  { key: 'permissionSets', metadataTypeName: 'PermissionSet' },
+  { key: 'roles', metadataTypeName: 'Role' },
+];
+const safeToDeleteByType = DELETABLE_TYPES.map(({ key, metadataTypeName }) => ({
+  metadataTypeName,
+  items: findings[key].filter((e) => e.recommendation === 'SAFE_TO_DELETE'),
+})).filter((t) => t.items.length > 0);
+
 const destructiveXml = [
   '<?xml version="1.0" encoding="UTF-8"?>',
   '<Package xmlns="http://soap.sforce.com/2006/04/metadata">',
-  ...(safeToDelete.length
-    ? ['    <types>', ...safeToDelete.map((p) => `        <members>${p.name}</members>`), '        <name>Profile</name>', '    </types>']
-    : []),
+  ...safeToDeleteByType.flatMap(({ metadataTypeName, items }) => [
+    '    <types>',
+    ...items.map((e) => `        <members>${e.name}</members>`),
+    `        <name>${metadataTypeName}</name>`,
+    '    </types>',
+  ]),
   '    <version>60.0</version>',
   '</Package>',
   '',
@@ -184,25 +193,27 @@ fs.writeFileSync(
 );
 
 // --- Console report ---
-console.log('\n=== Org Health Findings ===\n');
-console.log('Profiles:');
-for (const p of findings.profiles) {
-  console.log(`  - ${p.name}: ${p.activeUserCount} active user(s) -> ${p.recommendation}`);
-  for (const r of p.references) {
-    console.log(`      referenced in ${r.file}:${r.line}  |  ${r.snippet}`);
+const totalSafeToDelete = safeToDeleteByType.reduce((sum, t) => sum + t.items.length, 0);
+function printSection(title, entries) {
+  console.log(`\n${title}:`);
+  for (const e of entries) {
+    console.log(`  - ${e.name}: ${e.activeUserCount} active user(s) -> ${e.recommendation}`);
+    for (const r of e.references) {
+      console.log(`      referenced in ${r.file}:${r.line}  |  ${r.snippet}`);
+    }
   }
 }
-console.log('\nPermission Sets:');
-for (const p of findings.permissionSets) {
-  console.log(`  - ${p.name}: ${p.activeUserCount} active user(s) -> ${p.recommendation}`);
-}
+console.log('\n=== Org Health Findings ===');
+printSection('Profiles', findings.profiles);
+printSection('Permission Sets', findings.permissionSets);
+printSection('Roles', findings.roles);
 console.log(`\nFindings written to analysis/findings.json`);
 console.log(
-  `Deletion package written to analysis/destructiveChanges.xml + analysis/package.xml (${safeToDelete.length} profile(s) flagged for deletion)`
+  `Deletion package written to analysis/destructiveChanges.xml + analysis/package.xml (${totalSafeToDelete} item(s) flagged for deletion)`
 );
-if (safeToDelete.length === 0) {
+if (totalSafeToDelete === 0) {
   console.log(
-    'No profiles are safe to auto-delete -- all 0-user profiles found a code reference blocking deletion, or there are no 0-user profiles.'
+    'Nothing is safe to auto-delete -- all 0-user items found a code reference blocking deletion, or there are no 0-user items.'
   );
 }
 console.log('\nReview analysis/findings.json and analysis/destructiveChanges.xml before running any deploy against them.\n');
