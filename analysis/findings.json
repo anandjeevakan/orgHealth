@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-13T13:23:12.777Z",
+  "generatedAt": "2026-07-13T14:18:10.565Z",
   "targetOrg": "anandjeevakan@gmail.com",
   "profiles": [
     {
@@ -38,20 +38,38 @@
     {
       "name": "Bulk_Data_Edit",
       "activeUserCount": 0,
-      "recommendation": "FLAGGED_UNUSED",
-      "note": "Name-match code scanning is only specified for Profiles per the spec -- review manually before deleting."
+      "references": [],
+      "recommendation": "SAFE_TO_DELETE",
+      "confidence": "high"
     },
     {
       "name": "Discount_Approval",
       "activeUserCount": 0,
-      "recommendation": "FLAGGED_UNUSED",
-      "note": "Name-match code scanning is only specified for Profiles per the spec -- review manually before deleting."
+      "references": [],
+      "recommendation": "SAFE_TO_DELETE",
+      "confidence": "high"
     },
     {
       "name": "Report_Export",
       "activeUserCount": 0,
-      "recommendation": "FLAGGED_UNUSED",
-      "note": "Name-match code scanning is only specified for Profiles per the spec -- review manually before deleting."
+      "references": [],
+      "recommendation": "SAFE_TO_DELETE",
+      "confidence": "high"
+    }
+  ],
+  "roles": [
+    {
+      "name": "Legacy_Regional_Manager",
+      "activeUserCount": 0,
+      "references": [
+        {
+          "file": "force-app/main/default/classes/RegionalManagerCheck.cls",
+          "line": 6,
+          "snippet": "WHERE UserRole.Name = 'Legacy_Regional_Manager'"
+        }
+      ],
+      "recommendation": "DO_NOT_DELETE",
+      "confidence": "blocked-by-reference"
     }
   ]
 }
