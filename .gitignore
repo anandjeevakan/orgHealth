@@ -1,0 +1,4 @@
+# Salesforce CLI local project cache/config -- never commit
+.sf/
+
+node_modules/
