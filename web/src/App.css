@@ -23,6 +23,29 @@
   color: var(--danger);
 }
 
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.search-bar input[type='search'] {
+  flex: 1;
+  max-width: 420px;
+  padding: 8px 12px;
+  font-size: 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-h);
+}
+
+.search-bar input[type='search']:focus {
+  outline: 2px solid var(--action);
+  outline-offset: 1px;
+}
+
 .summary-cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));

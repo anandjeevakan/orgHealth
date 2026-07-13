@@ -64,12 +64,12 @@ function EntityRow({ entity }) {
   );
 }
 
-function EntityTable({ title, entities }) {
+function EntityTable({ title, entities, filtered }) {
   return (
     <section>
       <h2>{title}</h2>
       {entities.length === 0 ? (
-        <p className="muted">None found locally.</p>
+        <p className="muted">{filtered ? 'No matches.' : 'None found locally.'}</p>
       ) : (
         <table>
           <thead>
@@ -94,6 +94,7 @@ function EntityTable({ title, entities }) {
 function App() {
   const [findings, setFindings] = useState(null);
   const [error, setError] = useState(null);
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     fetch('/data/findings.json')
@@ -135,6 +136,13 @@ function App() {
   const safeToDelete = allEntities.filter((e) => e.recommendation === 'SAFE_TO_DELETE');
   const doNotDelete = allEntities.filter((e) => e.recommendation === 'DO_NOT_DELETE');
 
+  const needle = search.trim().toLowerCase();
+  const isFiltering = needle.length > 0;
+  const visibleCategories = categories.map((c) => ({
+    ...c,
+    entities: isFiltering ? c.entities.filter((e) => e.name.toLowerCase().includes(needle)) : c.entities,
+  }));
+
   return (
     <main className="page">
       <header className="page-header">
@@ -163,8 +171,29 @@ function App() {
         </div>
       </section>
 
-      {categories.map((c) => (
-        <EntityTable key={c.key} title={c.title} entities={c.entities} />
+      <div className="search-bar">
+        <input
+          type="search"
+          list="entity-names"
+          placeholder="Search a profile, permission set, or role…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          aria-label="Search profiles, permission sets, and roles"
+        />
+        <datalist id="entity-names">
+          {allEntities.map((e) => (
+            <option key={e.name} value={e.name} />
+          ))}
+        </datalist>
+        {isFiltering && (
+          <button className="link-button" onClick={() => setSearch('')}>
+            Clear
+          </button>
+        )}
+      </div>
+
+      {visibleCategories.map((c) => (
+        <EntityTable key={c.key} title={c.title} entities={c.entities} filtered={isFiltering} />
       ))}
     </main>
   );

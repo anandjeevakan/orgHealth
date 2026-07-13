@@ -6,13 +6,17 @@
 //
 // 1. Queries active user assignment counts per Profile, PermissionSet, and Role.
 // 2. Flags any with 0 active users.
-// 3. For each flagged item, scans local ValidationRule/Flow/ApexClass source
-//    under force-app for the item's exact name as a string literal
-//    ($Profile.Name comparisons, {!$Profile.Name} flow conditions,
-//    Profile.Name/UserRole.Name = '...' SOQL, or any hardcoded literal) --
-//    NOT UserInfo.getProfileId()/User.ProfileId/UserInfo.getUserRoleId(),
-//    which are ID-based and out of scope. Case-sensitive exact match only.
-//    Excludes the item's own metadata file.
+// 3. For each flagged item, scans local source under force-app for the item's
+//    exact name as a string literal ($Profile.Name comparisons,
+//    {!$Profile.Name} flow conditions, Profile.Name/UserRole.Name = '...'
+//    SOQL, formula-field references, or any hardcoded literal in Apex,
+//    Approval Processes, Workflow Rules, Sharing Rules, Public Groups, or
+//    Custom Metadata records) -- NOT UserInfo.getProfileId()/User.ProfileId/
+//    UserInfo.getUserRoleId(), which are ID-based and out of scope.
+//    Case-sensitive exact match only. Excludes the item's own metadata file.
+//    NOTE: Hierarchy Custom Setting profile-specific overrides are *data*
+//    (keyed by SetupOwnerId), not retrievable via source metadata, so they
+//    aren't covered by this file scan -- would need a separate live query.
 // 4. Writes analysis/findings.json with per-item user counts, references, and
 //    a recommendation.
 // 5. For flagged items with zero references, writes
@@ -70,6 +74,15 @@ function listMetadataNames(dir, suffix) {
     .map((f) => f.slice(0, -suffix.length));
 }
 
+// File suffixes that can plausibly contain a hardcoded Profile/PermissionSet/
+// Role name: validation rules & flows ($Profile.Name formulas), Apex (SOQL/
+// string literals), formula fields, approval processes, workflow rules,
+// sharing rules (role-based sharedTo/sharedFrom), public groups (can include
+// roles as members), and custom metadata records (often used to store config
+// like AllowedProfile__c = '...').
+const SCAN_FILE_PATTERN =
+  /\.(validationRule-meta\.xml|flow-meta\.xml|cls|field-meta\.xml|approvalProcess-meta\.xml|workflow-meta\.xml|sharingRules-meta\.xml|group-meta\.xml|md-meta\.xml)$/;
+
 function collectScanFiles() {
   const files = [];
   const walk = (dir) => {
@@ -77,7 +90,7 @@ function collectScanFiles() {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) walk(full);
-      else if (/\.(validationRule-meta\.xml|flow-meta\.xml|cls)$/.test(entry.name)) {
+      else if (SCAN_FILE_PATTERN.test(entry.name)) {
         files.push(full);
       }
     }
