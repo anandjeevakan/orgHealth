@@ -39,12 +39,21 @@ if (!targetOrg) {
   process.exit(1);
 }
 
+const IS_WINDOWS = process.platform === 'win32';
+// On Windows, execFileSync with shell:true joins args into a single command
+// line without quoting them itself, so a multi-word argument (like our SOQL
+// query) gets split into separate words by cmd.exe. Quote each arg ourselves
+// in that case; non-Windows platforms don't need a shell at all, so
+// execFileSync passes the argv array through untouched.
+function quoteForCmd(value) {
+  return `"${String(value).replace(/"/g, '""')}"`;
+}
+
 function sfQuery(soql) {
-  const raw = execFileSync(
-    'sf',
-    ['data', 'query', '--query', soql, '--target-org', targetOrg, '--json'],
-    { encoding: 'utf8', maxBuffer: 1024 * 1024 * 20, shell: process.platform === 'win32' }
-  );
+  const args = ['data', 'query', '--query', soql, '--target-org', targetOrg, '--json'];
+  const raw = IS_WINDOWS
+    ? execFileSync('sf', args.map(quoteForCmd), { encoding: 'utf8', maxBuffer: 1024 * 1024 * 20, shell: true })
+    : execFileSync('sf', args, { encoding: 'utf8', maxBuffer: 1024 * 1024 * 20 });
   const parsed = JSON.parse(raw);
   if (parsed.status !== 0) {
     throw new Error(`SOQL query failed: ${soql}\n${JSON.stringify(parsed, null, 2)}`);
