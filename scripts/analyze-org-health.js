@@ -95,7 +95,7 @@ function findReferences(profileName, ownProfileFile) {
     const content = fs.readFileSync(file, 'utf8');
     content.split('\n').forEach((line, i) => {
       if (pattern.test(line)) {
-        refs.push({ file: path.relative(ROOT, file), line: i + 1, snippet: line.trim() });
+        refs.push({ file: path.relative(ROOT, file).split(path.sep).join('/'), line: i + 1, snippet: line.trim() });
       }
     });
   }

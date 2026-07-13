@@ -1,0 +1,57 @@
+{
+  "generatedAt": "2026-07-13T13:23:12.777Z",
+  "targetOrg": "anandjeevakan@gmail.com",
+  "profiles": [
+    {
+      "name": "Contractor_Temp_Q3",
+      "activeUserCount": 0,
+      "references": [
+        {
+          "file": "force-app/main/default/flows/Contractor_Access_Check.flow-meta.xml",
+          "line": 17,
+          "snippet": "<stringValue>Contractor_Temp_Q3</stringValue>"
+        }
+      ],
+      "recommendation": "DO_NOT_DELETE",
+      "confidence": "blocked-by-reference"
+    },
+    {
+      "name": "Legacy_Support_Rep",
+      "activeUserCount": 0,
+      "references": [
+        {
+          "file": "force-app/main/default/objects/Opportunity/validationRules/VR_Discount_Block.validationRule-meta.xml",
+          "line": 5,
+          "snippet": "<description>Blocks the Legacy Support Rep profile from applying a discount on Opportunities. Landmine case for org-health analysis: Legacy_Support_Rep has 0 active users but is still referenced here.</description>"
+        },
+        {
+          "file": "force-app/main/default/objects/Opportunity/validationRules/VR_Discount_Block.validationRule-meta.xml",
+          "line": 7,
+          "snippet": "$Profile.Name = &quot;Legacy_Support_Rep&quot;,"
+        }
+      ],
+      "recommendation": "DO_NOT_DELETE",
+      "confidence": "blocked-by-reference"
+    }
+  ],
+  "permissionSets": [
+    {
+      "name": "Bulk_Data_Edit",
+      "activeUserCount": 0,
+      "recommendation": "FLAGGED_UNUSED",
+      "note": "Name-match code scanning is only specified for Profiles per the spec -- review manually before deleting."
+    },
+    {
+      "name": "Discount_Approval",
+      "activeUserCount": 0,
+      "recommendation": "FLAGGED_UNUSED",
+      "note": "Name-match code scanning is only specified for Profiles per the spec -- review manually before deleting."
+    },
+    {
+      "name": "Report_Export",
+      "activeUserCount": 0,
+      "recommendation": "FLAGGED_UNUSED",
+      "note": "Name-match code scanning is only specified for Profiles per the spec -- review manually before deleting."
+    }
+  ]
+}
