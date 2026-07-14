@@ -109,3 +109,60 @@ said "tomorrow") — ask again before starting:
 - Decide whether the existing `scripts/analyze-org-health.js` (CLI-driven,
   single-org) stays as a separate/simpler tool, or gets fully superseded by
   the web app's live pipeline.
+
+## Distribution model exploration (2026-07-14) — public web app REJECTED
+
+Spent a session exploring how to package/distribute this as a real product,
+beyond the single-org CLI tool. Options considered, in the order discussed:
+
+1. **Public multi-tenant web app** (any org's admin logs in via Salesforce
+   OAuth) — this is the option `NEXT PLANNED WORK` above describes. Still
+   theoretically on the table, but same CORS/OAuth complexity applies.
+2. **Chrome extension** — piggybacks on the admin's already-logged-in
+   Salesforce browser session (same trick as the popular **Salesforce
+   Inspector Reloaded** extension), so **no OAuth/Connected App/CORS
+   ceremony needed at all**. The catch: a browser extension can't read local
+   files, so the code-reference scan (currently grep-ing local
+   ValidationRule/Flow/ApexClass source) would need to be rewritten to pull
+   Apex/Flow bodies via the **Tooling API** instead — same rewrite needed
+   for the web-app and unlocked-package options too, not unique to this one.
+3. **Salesforce Unlocked Package** (native LWC + Apex, installed directly
+   into the target org via an install link) — explored in depth, then
+   **rejected**. Reasoning:
+   - No Salesforce Partner Program / ISV account needed to build or share an
+     unlocked package (common misconception) — Dev Hub is free on any
+     Developer Edition org, and namespace registration (if wanted) is also
+     free via a separate registry org. Partner Program is only needed to
+     *list on AppExchange*, not to build or hand someone a direct install
+     link.
+   - BUT: making the code-reference scan work from inside Apex requires an
+     Apex callout **back into the same org's own Tooling API**, and
+     Salesforce does NOT auto-authorize that. It requires manually creating,
+     per installing org: a Connected App → an Auth Provider (type
+     "Salesforce") → wiring the generated callback URL back into the
+     Connected App → a Named Credential (Named Principal, OAuth 2.0,
+     referencing the Auth Provider) — a real one-time, easy-to-get-wrong,
+     multi-step manual setup cost per org. This undercut the entire
+     "easiest to use" reason this option was on the table, so it was
+     dropped. (Concrete steps for this are in chat history if ever
+     revisited, not reproduced here since the option was abandoned.)
+4. **GitHub-downloadable CLI + React dashboard** — what's actually built and
+   working today (this repo). No new hurdles. Chosen reasoning at the time:
+   full local filesystem access already solves the code-scan problem
+   naturally, appeals to security-conscious admins who want to audit the
+   code before running it against their org, zero hosting liability.
+
+**Where this left off**: leaning toward either (a) shipping what's already
+built as-is (GitHub CLI + React dashboard, this repo), or (b) revisiting the
+**Chrome extension** option specifically because it turned out to dodge the
+exact self-auth wall that killed the unlocked-package idea — same Tooling
+API rewrite needed either way, but no Named Credential ceremony. No final
+decision made. Also brainstormed product names (`AdminAlly`/`OrgCopilot`
+favorites, `Cleanforce`-adjacent naming avoided due to Salesforce's known
+"-force" trademark enforcement).
+
+**User asked to understand "headless architecture" more** (in the context of
+this React dashboard consuming a static `findings.json` rather than a live
+API — confirmed it qualifies, closer to a JAMstack-style headless pattern
+than a live headless-CMS pattern) — pick this up as a learning/discussion
+topic next session if raised again.
