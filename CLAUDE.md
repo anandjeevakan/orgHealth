@@ -166,3 +166,31 @@ this React dashboard consuming a static `findings.json` rather than a live
 API — confirmed it qualifies, closer to a JAMstack-style headless pattern
 than a live headless-CMS pattern) — pick this up as a learning/discussion
 topic next session if raised again.
+
+## Possible reframe (2026-07-15): personal tool, not public product
+
+User revealed real context that changes the calculus: they have **multiple
+real work tickets** requiring this kind of profile/role/permission-set
+audit work — meaning the actual near-term need may be a **personal,
+repeatable, multi-org tool for their own ticket work**, not a public product
+for strangers to install. If that's the direction, the entire distribution
+debate above (Chrome extension vs unlocked package vs web app) becomes
+moot — none of that packaging matters for solo/internal use.
+
+**Proposed idea, not yet built, pending discussion**: keep the CLI + React
+dashboard exactly as-is, but add:
+1. An `--out <path>` flag on `scripts/analyze-org-health.js` so each
+   ticket's findings get saved to a distinct file (e.g.
+   `reports/TICKET-1234.json`) instead of overwriting the single
+   `analysis/findings.json` every run.
+2. A report picker in the React dashboard (dropdown listing everything in
+   `reports/`) so it becomes a personal ticket-history viewer rather than
+   always showing one hardcoded file.
+3. Workflow per ticket stays simple: `sf org login web --alias ticket1234`
+   for whichever org that ticket concerns, run the analysis with `--out`,
+   view/compare in the dashboard.
+
+**Not decided yet** — whether to go this "personal tool" direction, or still
+pursue one of the public-distribution options above, or both (personal tool
+now, revisit public packaging later). Ask which way to go before building
+either the multi-report support or any distribution-packaging work.
