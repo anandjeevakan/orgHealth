@@ -167,30 +167,38 @@ API — confirmed it qualifies, closer to a JAMstack-style headless pattern
 than a live headless-CMS pattern) — pick this up as a learning/discussion
 topic next session if raised again.
 
-## Possible reframe (2026-07-15): personal tool, not public product
+## DECIDED (2026-07-16): personal tool, not public product
 
-User revealed real context that changes the calculus: they have **multiple
-real work tickets** requiring this kind of profile/role/permission-set
-audit work — meaning the actual near-term need may be a **personal,
-repeatable, multi-org tool for their own ticket work**, not a public product
-for strangers to install. If that's the direction, the entire distribution
-debate above (Chrome extension vs unlocked package vs web app) becomes
-moot — none of that packaging matters for solo/internal use.
+User confirmed: this is for their own use across multiple real work tickets
+involving roles/profiles/code changes, not a public product for strangers to
+install. **The entire distribution debate above (Chrome extension vs
+unlocked package vs public web app) is now moot** — none of that packaging
+work is needed. The CLI + React dashboard stays as the permanent shape of
+this tool.
 
-**Proposed idea, not yet built, pending discussion**: keep the CLI + React
-dashboard exactly as-is, but add:
-1. An `--out <path>` flag on `scripts/analyze-org-health.js` so each
-   ticket's findings get saved to a distinct file (e.g.
-   `reports/TICKET-1234.json`) instead of overwriting the single
-   `analysis/findings.json` every run.
-2. A report picker in the React dashboard (dropdown listing everything in
-   `reports/`) so it becomes a personal ticket-history viewer rather than
-   always showing one hardcoded file.
-3. Workflow per ticket stays simple: `sf org login web --alias ticket1234`
-   for whichever org that ticket concerns, run the analysis with `--out`,
-   view/compare in the dashboard.
+**Built as a result** (see commit `aa6b683`):
+1. `scripts/analyze-org-health.js` has an optional `--out <ticket-name>`
+   flag — writes to `reports/<ticket-name>/{findings.json,
+   destructiveChanges.xml, package.xml}` instead of the single
+   `analysis/` location, so different tickets/orgs don't overwrite each
+   other. Omitting `--out` keeps the original `analysis/`-only behavior
+   (kept for backward compat with the already-committed real example).
+2. `web/scripts/sync-findings.js` now syncs *every* report found (legacy
+   `analysis/` plus all of `reports/*/`) into `web/public/data/reports/`,
+   with an `index.json` manifest (id, targetOrg, generatedAt per report).
+3. The React dashboard shows a **Report** dropdown (only when more than one
+   report exists) defaulting to the most recently generated one, letting
+   past tickets be revisited without re-running the analysis.
+4. `reports/` is gitignored — per-ticket output is personal working data,
+   not meant to be committed to this repo. `analysis/` stays tracked as the
+   original reference example.
 
-**Not decided yet** — whether to go this "personal tool" direction, or still
-pursue one of the public-distribution options above, or both (personal tool
-now, revisit public packaging later). Ask which way to go before building
-either the multi-report support or any distribution-packaging work.
+**Actual per-ticket workflow now**:
+```bash
+sf org login web --alias ticket1234 --set-default   # once per new org
+node scripts/analyze-org-health.js --target-org ticket1234 --out ticket1234
+cd web && npm run dev                                # pick "ticket1234" from the Report dropdown
+```
+
+Nothing else outstanding on distribution — this thread is closed unless the
+user explicitly revisits public packaging later.
