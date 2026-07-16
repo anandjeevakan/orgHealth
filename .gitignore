@@ -2,3 +2,9 @@
 .sf/
 
 node_modules/
+
+# Per-ticket findings reports (--out <ticket-name>) -- personal working
+# output across many unrelated tickets/orgs, not meant to be committed.
+# analysis/ (the original single-report default) is intentionally still
+# tracked as a reference example.
+/reports/

@@ -121,29 +121,54 @@ function exportToCsv(categories) {
 }
 
 function App() {
+  const [reportIndex, setReportIndex] = useState(null);
+  const [selectedReportId, setSelectedReportId] = useState(null);
   const [findings, setFindings] = useState(null);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
   const [selectedProfiles, setSelectedProfiles] = useState([]);
 
   useEffect(() => {
-    fetch('/data/findings.json')
+    fetch('/data/reports/index.json')
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((idx) => {
+        setReportIndex(idx);
+        if (idx.length > 0) setSelectedReportId(idx[0].id);
+      })
+      .catch((err) => setError(err.message));
+  }, []);
+
+  useEffect(() => {
+    if (!selectedReportId) return;
+    setFindings(null);
+    fetch(`/data/reports/${selectedReportId}.json`)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
       })
       .then(setFindings)
       .catch((err) => setError(err.message));
-  }, []);
+  }, [selectedReportId]);
 
   if (error) {
     return (
       <main className="page">
         <p className="error">
           Couldn't load findings: {error}. Run{' '}
-          <code>node scripts/analyze-org-health.js --target-org &lt;org&gt;</code>{' '}
+          <code>node scripts/analyze-org-health.js --target-org &lt;org&gt; [--out &lt;ticket-name&gt;]</code>{' '}
           from the repo root, then <code>npm run sync-data</code> in <code>web/</code>.
         </p>
+      </main>
+    );
+  }
+
+  if (!reportIndex || reportIndex.length === 0) {
+    return (
+      <main className="page">
+        <p>No reports found yet. Run the analysis script first.</p>
       </main>
     );
   }
@@ -190,6 +215,18 @@ function App() {
             Export to Excel (CSV)
           </button>
         </div>
+        {reportIndex.length > 1 && (
+          <div className="report-picker">
+            <label htmlFor="report-select">Report</label>
+            <select id="report-select" value={selectedReportId} onChange={(e) => setSelectedReportId(e.target.value)}>
+              {reportIndex.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.id} — {r.targetOrg} ({new Date(r.generatedAt).toLocaleDateString()})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </header>
 
       <section className="summary-cards">

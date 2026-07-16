@@ -47,6 +47,28 @@
   border-color: var(--action);
 }
 
+.report-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.report-picker label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.report-picker select {
+  padding: 6px 10px;
+  font-size: 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-h);
+}
+
 .multiselect-bar {
   margin-bottom: 32px;
 }

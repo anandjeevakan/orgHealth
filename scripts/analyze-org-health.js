@@ -2,7 +2,13 @@
 // Org Health analysis pipeline.
 //
 // Usage:
-//   node scripts/analyze-org-health.js --target-org <alias-or-username>
+//   node scripts/analyze-org-health.js --target-org <alias-or-username> [--out <ticket-name>]
+//
+// --out is optional. Omit it to keep writing to analysis/ (legacy, single
+// report). Pass a name (e.g. --out TICKET-1234) to instead write into
+// reports/<ticket-name>/, keeping each ticket's/org's findings separate
+// instead of overwriting the same file on every run -- meant for repeated
+// personal use across many unrelated tickets/orgs over time.
 //
 // 1. Queries active user assignment counts per Profile, PermissionSet, and Role.
 // 2. Flags any with 0 active users.
@@ -30,7 +36,6 @@ const { execFileSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..');
 const METADATA_ROOT = path.join(ROOT, 'force-app', 'main', 'default');
-const OUT_DIR = path.join(ROOT, 'analysis');
 
 function arg(name) {
   const idx = process.argv.indexOf(`--${name}`);
@@ -39,9 +44,16 @@ function arg(name) {
 
 const targetOrg = arg('target-org');
 if (!targetOrg) {
-  console.error('Usage: node scripts/analyze-org-health.js --target-org <alias-or-username>');
+  console.error('Usage: node scripts/analyze-org-health.js --target-org <alias-or-username> [--out <ticket-name>]');
   process.exit(1);
 }
+
+const ticketName = arg('out');
+// Sanitize to a safe folder/file name segment -- avoid path traversal or
+// accidentally writing outside reports/.
+const safeTicketName = ticketName ? ticketName.replace(/[^A-Za-z0-9_.-]/g, '_') : null;
+const OUT_DIR = safeTicketName ? path.join(ROOT, 'reports', safeTicketName) : path.join(ROOT, 'analysis');
+const REPORT_LABEL = safeTicketName ? `reports/${safeTicketName}` : 'analysis';
 
 const IS_WINDOWS = process.platform === 'win32';
 // On Windows, execFileSync with shell:true joins args into a single command
@@ -220,13 +232,13 @@ console.log('\n=== Org Health Findings ===');
 printSection('Profiles', findings.profiles);
 printSection('Permission Sets', findings.permissionSets);
 printSection('Roles', findings.roles);
-console.log(`\nFindings written to analysis/findings.json`);
+console.log(`\nFindings written to ${REPORT_LABEL}/findings.json`);
 console.log(
-  `Deletion package written to analysis/destructiveChanges.xml + analysis/package.xml (${totalSafeToDelete} item(s) flagged for deletion)`
+  `Deletion package written to ${REPORT_LABEL}/destructiveChanges.xml + ${REPORT_LABEL}/package.xml (${totalSafeToDelete} item(s) flagged for deletion)`
 );
 if (totalSafeToDelete === 0) {
   console.log(
     'Nothing is safe to auto-delete -- all 0-user items found a code reference blocking deletion, or there are no 0-user items.'
   );
 }
-console.log('\nReview analysis/findings.json and analysis/destructiveChanges.xml before running any deploy against them.\n');
+console.log(`\nReview ${REPORT_LABEL}/findings.json and ${REPORT_LABEL}/destructiveChanges.xml before running any deploy against them.\n`);
