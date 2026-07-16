@@ -1,20 +1,12 @@
 .page {
-  max-width: 1000px;
+  max-width: 900px;
   margin: 0 auto;
   padding: 32px 20px 64px;
   text-align: left;
 }
 
 .page-header {
-  margin-bottom: 24px;
-}
-
-.page-header-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-  flex-wrap: wrap;
+  margin-bottom: 32px;
 }
 
 .page-header h1 {
@@ -31,83 +23,27 @@
   color: var(--danger);
 }
 
-.export-button {
-  padding: 8px 16px;
-  font-size: 14px;
-  font-weight: 600;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg-alt);
-  color: var(--text-h);
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.export-button:hover {
-  border-color: var(--action);
-}
-
-.report-picker {
+.drilldown-bar {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 12px;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin-bottom: 32px;
 }
 
-.report-picker label {
+.drilldown-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.drilldown-field label {
   font-size: 13px;
   font-weight: 600;
   color: var(--text-h);
 }
 
-.report-picker select {
-  padding: 6px 10px;
-  font-size: 14px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg);
-  color: var(--text-h);
-}
-
-.multiselect-bar {
-  margin-bottom: 32px;
-}
-
-.multiselect-bar label {
-  display: block;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-h);
-  margin-bottom: 6px;
-}
-
-.multiselect-bar select[multiple] {
-  min-width: 260px;
-  max-width: 100%;
-  padding: 4px;
-  font-size: 14px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg);
-  color: var(--text-h);
-}
-
-.multiselect-bar .hint {
-  margin-top: 6px;
-  font-size: 12px;
-  color: var(--text);
-}
-
-.search-bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 32px;
-}
-
-.search-bar input[type='search'] {
-  flex: 1;
-  max-width: 420px;
+.drilldown-field select {
+  min-width: 240px;
   padding: 8px 12px;
   font-size: 14px;
   border: 1px solid var(--border);
@@ -116,70 +52,35 @@
   color: var(--text-h);
 }
 
-.search-bar input[type='search']:focus {
-  outline: 2px solid var(--action);
-  outline-offset: 1px;
+.drilldown-field select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-.summary-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 12px;
-  margin-bottom: 40px;
-}
-
-.card {
+.detail-panel {
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 16px;
+  padding: 20px 24px;
   background: var(--bg-alt);
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
 }
 
-.card-value {
-  font-size: 28px;
-  font-weight: 700;
+.detail-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.detail-header h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.detail-panel h3 {
+  margin: 20px 0 10px;
+  font-size: 14px;
   color: var(--text-h);
 }
 
-.card-label {
-  font-size: 13px;
-  color: var(--text);
-}
-
-section + section {
-  margin-top: 40px;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-
-th,
-td {
-  text-align: left;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: top;
-}
-
-th {
-  color: var(--text);
-  font-weight: 600;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-td.num {
-  font-variant-numeric: tabular-nums;
-}
-
-td.muted,
 .muted {
   color: var(--text);
   font-size: 13px;
@@ -199,11 +100,6 @@ td.muted,
   background: var(--danger-bg);
 }
 
-.badge-warn {
-  color: var(--warn);
-  background: var(--warn-bg);
-}
-
 .badge-action {
   color: var(--action);
   background: var(--action-bg);
@@ -214,31 +110,33 @@ td.muted,
   background: var(--ok-bg);
 }
 
-.link-button {
-  background: none;
-  border: none;
-  color: var(--text-h);
-  text-decoration: underline;
-  cursor: pointer;
-  font-size: 13px;
-  padding: 0;
-}
-
-.refs-row td {
-  background: var(--bg-alt);
-}
-
 .refs-list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
+}
+
+.refs-list li {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  background: var(--bg);
+}
+
+.ref-type {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--action);
+  margin-bottom: 4px;
 }
 
 .refs-list pre {
-  margin: 4px 0 0;
+  margin: 6px 0 0;
   padding: 8px 10px;
   background: var(--code-bg);
   border-radius: 6px;

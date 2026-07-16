@@ -11,21 +11,23 @@
 // personal use across many unrelated tickets/orgs over time.
 //
 // 1. Queries active user assignment counts per Profile, PermissionSet, and Role.
-// 2. Flags any with 0 active users.
-// 3. For each flagged item, scans local source under force-app for the item's
-//    exact name as a string literal ($Profile.Name comparisons,
-//    {!$Profile.Name} flow conditions, Profile.Name/UserRole.Name = '...'
-//    SOQL, formula-field references, or any hardcoded literal in Apex,
-//    Approval Processes, Workflow Rules, Sharing Rules, Public Groups, or
-//    Custom Metadata records) -- NOT UserInfo.getProfileId()/User.ProfileId/
-//    UserInfo.getUserRoleId(), which are ID-based and out of scope.
-//    Case-sensitive exact match only. Excludes the item's own metadata file.
+// 2. For every item (regardless of active user count, so any profile/role/
+//    permission set can be looked up), scans local source under force-app
+//    for the item's exact name as a string literal ($Profile.Name
+//    comparisons, {!$Profile.Name} flow conditions, Profile.Name/
+//    UserRole.Name = '...' SOQL, formula-field references, or any hardcoded
+//    literal in Apex classes/triggers, Approval Processes, Workflow Rules,
+//    Sharing Rules, Public Groups, or Custom Metadata records) -- NOT
+//    UserInfo.getProfileId()/User.ProfileId/UserInfo.getUserRoleId(), which
+//    are ID-based and out of scope. Case-sensitive exact match only.
+//    Excludes the item's own metadata file.
 //    NOTE: Hierarchy Custom Setting profile-specific overrides are *data*
 //    (keyed by SetupOwnerId), not retrievable via source metadata, so they
 //    aren't covered by this file scan -- would need a separate live query.
-// 4. Writes analysis/findings.json with per-item user counts, references, and
-//    a recommendation.
-// 5. For flagged items with zero references, writes
+// 3. Flags 0-user items and writes analysis/findings.json with per-item user
+//    counts, references (each tagged with a type: Apex Class, Flow, Trigger,
+//    Validation Rule, etc.), and a recommendation.
+// 4. For flagged items with zero references, writes
 //    analysis/destructiveChanges.xml + analysis/package.xml (a deletion
 //    package) for manual review -- this script never deploys it.
 
@@ -87,13 +89,31 @@ function listMetadataNames(dir, suffix) {
 }
 
 // File suffixes that can plausibly contain a hardcoded Profile/PermissionSet/
-// Role name: validation rules & flows ($Profile.Name formulas), Apex (SOQL/
-// string literals), formula fields, approval processes, workflow rules,
-// sharing rules (role-based sharedTo/sharedFrom), public groups (can include
-// roles as members), and custom metadata records (often used to store config
-// like AllowedProfile__c = '...').
+// Role name: validation rules & flows ($Profile.Name formulas), Apex classes
+// and triggers (SOQL/string literals), formula fields, approval processes,
+// workflow rules, sharing rules (role-based sharedTo/sharedFrom), public
+// groups (can include roles as members), and custom metadata records (often
+// used to store config like AllowedProfile__c = '...').
 const SCAN_FILE_PATTERN =
-  /\.(validationRule-meta\.xml|flow-meta\.xml|cls|field-meta\.xml|approvalProcess-meta\.xml|workflow-meta\.xml|sharingRules-meta\.xml|group-meta\.xml|md-meta\.xml)$/;
+  /\.(validationRule-meta\.xml|flow-meta\.xml|cls|trigger|field-meta\.xml|approvalProcess-meta\.xml|workflow-meta\.xml|sharingRules-meta\.xml|group-meta\.xml|md-meta\.xml)$/;
+
+// Friendly labels for the UI, derived from file suffix.
+const REFERENCE_TYPE_BY_SUFFIX = [
+  [/\.validationRule-meta\.xml$/, 'Validation Rule'],
+  [/\.flow-meta\.xml$/, 'Flow'],
+  [/\.trigger$/, 'Trigger'],
+  [/\.cls$/, 'Apex Class'],
+  [/\.field-meta\.xml$/, 'Formula Field'],
+  [/\.approvalProcess-meta\.xml$/, 'Approval Process'],
+  [/\.workflow-meta\.xml$/, 'Workflow Rule'],
+  [/\.sharingRules-meta\.xml$/, 'Sharing Rule'],
+  [/\.group-meta\.xml$/, 'Public Group'],
+  [/\.md-meta\.xml$/, 'Custom Metadata'],
+];
+function referenceType(file) {
+  const match = REFERENCE_TYPE_BY_SUFFIX.find(([re]) => re.test(file));
+  return match ? match[1] : 'Other';
+}
 
 function collectScanFiles() {
   const files = [];
@@ -118,9 +138,10 @@ function findReferences(name, ownFile) {
   for (const file of collectScanFiles()) {
     if (ownFile && path.resolve(file) === path.resolve(ownFile)) continue;
     const content = fs.readFileSync(file, 'utf8');
+    const relFile = path.relative(ROOT, file).split(path.sep).join('/');
     content.split('\n').forEach((line, i) => {
       if (pattern.test(line)) {
-        refs.push({ file: path.relative(ROOT, file).split(path.sep).join('/'), line: i + 1, snippet: line.trim() });
+        refs.push({ file: relFile, line: i + 1, snippet: line.trim(), type: referenceType(relFile) });
       }
     });
   }
@@ -128,16 +149,19 @@ function findReferences(name, ownFile) {
 }
 
 // Builds findings entries for one entity type: for each locally-known name,
-// looks up its active user count, and (if 0) scans for code references.
+// looks up its active user count and scans for code references (regardless
+// of user count -- lookups can target any profile/role/permission set, not
+// just unused ones). Recommendation/confidence are still driven by whether
+// it has 0 active users and/or a blocking reference.
 function buildEntries(names, userCounts, metadataDir, metadataSuffix) {
   return names.map((name) => {
     const userCount = userCounts[name] || 0;
     const ownFile = path.join(METADATA_ROOT, metadataDir, `${name}${metadataSuffix}`);
-    const entry = { name, activeUserCount: userCount, references: [] };
+    const references = findReferences(name, ownFile);
+    const entry = { name, activeUserCount: userCount, references };
     if (userCount === 0) {
-      entry.references = findReferences(name, ownFile);
-      entry.recommendation = entry.references.length === 0 ? 'SAFE_TO_DELETE' : 'DO_NOT_DELETE';
-      entry.confidence = entry.references.length === 0 ? 'high' : 'blocked-by-reference';
+      entry.recommendation = references.length === 0 ? 'SAFE_TO_DELETE' : 'DO_NOT_DELETE';
+      entry.confidence = references.length === 0 ? 'high' : 'blocked-by-reference';
     } else {
       entry.recommendation = 'IN_USE';
       entry.confidence = 'high';
